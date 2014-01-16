@@ -1,0 +1,90 @@
+#!/bin/bash
+
+if [ $# -lt 2 ]
+then
+    echo "Usage: ./set_network <network (location). For instance, 'home', 'regus'> <either 'mgr' or 'db'>"
+    exit 1
+fi
+
+regus="REGUS"
+home="HOME"
+mgr="MGR"
+db="DB"
+hosts="/etc/hosts"
+eth0="/etc/sysconfig/network-scripts/ifcfg-eth0"
+network_restart="/etc/init.d/network restart"
+
+if [ `echo $1 | tr [:upper:] [:lower:]` = `echo $regus | tr [:upper:] [:lower:]` ]
+# REGUS
+then
+    # /etc/hosts
+    sed -i "/# home/d" $hosts
+    sed -i "/192.168.1.31 mgr.cloudstack.sungard mgr/d" $hosts
+    sed -i "/192.168.1.32 db.cloudstack.sungard db/d" $hosts
+    sed -i "/::1/a# regus" $hosts
+    sed -i "/# regus/a10.136.68.125 mgr.cloudstack.sungard mgr" $hosts
+    sed -i "/10.136.68.125 mgr.cloudstack.sungard mgr/a10.136.68.126 db.cloudstack.sungard db" $hosts
+
+    # /etc/sysconfig/network-scripts/ifcfg-eth0
+    sed -i "/# home/d" $eth0
+    sed -i "/BROADCAST=192.168.1.255/d" $eth0
+    sed -i "/GATEWAY=192.168.1.254/d" $eth0
+    sed -i "/DNS1=192.168.1.254/d" $eth0
+    if [ `echo $2 | tr [:upper:] [:lower:]` = `echo $mgr | tr [:upper:] [:lower:]` ]
+    then
+        sed -i "/IPADDR=192.168.1.31/d" $eth0
+    elif [ `echo $2 | tr [:upper:] [:lower:]` = `echo $db | tr [:upper:] [:lower:]` ]
+    then
+        sed -i "/IPADDR=192.168.1.32/d" $eth0
+    fi
+    sed -i "/NETMASK=255.255.255.0/a# regus" $eth0
+    sed -i "/# regus/aBROADCAST=10.136.68.127" $eth0
+    sed -i "/BROADCAST=10.136.68.127/aGATEWAY=10.136.68.1" $eth0
+    sed -i "/GATEWAY=10.136.68.1/aDNS1=10.136.68.1" $eth0
+    if [ `echo $2 | tr [:upper:] [:lower:]` = `echo $mgr | tr [:upper:] [:lower:]` ]
+    then
+        sed -i "/DNS1=10.136.68.1/aIPADDR=10.136.68.125" $eth0
+    elif [ `echo $2 | tr [:upper:] [:lower:]` = `echo $db | tr [:upper:] [:lower:]` ]
+    then
+        sed -i "/DNS1=10.136.68.1/aIPADDR=10.136.68.126" $eth0
+    fi
+elif [ `echo $1 | tr [:upper:] [:lower:]` = `echo $home | tr [:upper:] [:lower:]` ]
+# HOME
+then
+    # /etc/hosts
+    sed -i "/# regus/d" $hosts
+    sed -i "/10.136.68.125 mgr.cloudstack.sungard mgr/d" $hosts
+    sed -i "/10.136.68.126 db.cloudstack.sungard db/d" $hosts
+    sed -i "/::1/a# home" $hosts
+    sed -i "/# home/a192.168.1.31 mgr.cloudstack.sungard mgr" $hosts
+    sed -i "/192.168.1.31 mgr.cloudstack.sungard mgr/a192.168.1.32 db.cloudstack.sungard db" $hosts
+
+    # /etc/sysconfig/network-scripts/ifcfg-eth0
+    sed -i "/# regus/d" $eth0
+    sed -i "/BROADCAST=10.136.68.127/d" $eth0
+    sed -i "/GATEWAY=10.136.68.1/d" $eth0
+    sed -i "/DNS1=10.136.68.1/d" $eth0
+    if [ `echo $2 | tr [:upper:] [:lower:]` = `echo $mgr | tr [:upper:] [:lower:]` ]
+    then
+        sed -i "/IPADDR=10.136.68.125/d" $eth0
+    elif [ `echo $2 | tr [:upper:] [:lower:]` = `echo $db | tr [:upper:] [:lower:]` ]
+    then
+        sed -i "/IPADDR=10.136.68.126/d" $eth0
+    fi
+    sed -i "/NETMASK=255.255.255.0/a# home" $eth0
+    sed -i "/# home/aBROADCAST=192.168.1.255" $eth0
+    sed -i "/BROADCAST=192.168.1.255/aGATEWAY=192.168.1.254" $eth0
+    sed -i "/GATEWAY=192.168.1.254/aDNS1=192.168.1.254" $eth0
+    if [ `echo $2 | tr [:upper:] [:lower:]` = `echo $mgr | tr [:upper:] [:lower:]` ]
+    then
+        sed -i "/DNS1=192.168.1.254/aIPADDR=192.168.1.31" $eth0
+    elif [ `echo $2 | tr [:upper:] [:lower:]` = `echo $db | tr [:upper:] [:lower:]` ]
+    then
+        sed -i "/DNS1=192.168.1.254/aIPADDR=192.168.1.32" $eth0
+    fi
+fi
+
+$network_restart
+
+echo "All is good :-)"
+exit 0
